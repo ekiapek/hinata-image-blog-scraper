@@ -1,6 +1,6 @@
 # hinata-image-blog-scraper
 Simple Python script to download all the lovely Hinatazaka46 member's blog images.
-This script will grab all images from the first page of each member's blog. I personally use this to download the latest image from all members, incorporating the use of Windows Task Scheduler which will execute the script once every hour. Once triggered, the script will download all the images located on the first page from each member's personal blog and discard if the image already exist in your system.
+This script will grab all images from the first page of each member's blog. I personally use this to download the latest image from all members, incorporating the use of Windows Task Scheduler which will execute the script automatically. Once triggered, the script will download all the images located on the first page from each member's personal blog and discard if the image already exist in your system.
 If you're hoping that this script will download all the images from the very beginning of each member's blog, I'm afraid that this script is not capable yet. But probably it will be added as a feature. If you want to contribute, just fork me!
 
 ## Requirements
