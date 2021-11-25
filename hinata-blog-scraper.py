@@ -33,7 +33,7 @@ for member in config["members"]:
                 article_body = article.find("div", class_="c-blog-article__text")
                 images = article_body.find_all("img")
                 for image in images:
-                    if image['src'] != "":
+                    if image['src'] != "" and "http" in image['src']:
                         basename = os.path.basename(image["src"])
                         full_path = os.path.join(save_path,basename)
                         if not os.path.exists(full_path):
