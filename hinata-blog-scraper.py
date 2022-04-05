@@ -1,91 +1,212 @@
 # -*- coding: utf-8 -*-
-import datetime
 import requests
 from bs4 import BeautifulSoup
 import json
 import os
 import argparse
+import pathlib
+import filedate
 
+confstring = '''
+ {"members": [
+        {
+            "memberName": "Ushio Sarina",
+            "blogUrl": "https://www.hinatazaka46.com/s/official/diary/member/list?ima=0000&ct=2"
+        },
+        {
+            "memberName": "Kageyama Yuka",
+            "blogUrl": "https://www.hinatazaka46.com/s/official/diary/member/list?ima=0000&ct=4"
+        },
+        {
+            "memberName": "Kato Shiho",
+            "blogUrl": "https://www.hinatazaka46.com/s/official/diary/member/list?ima=0000&ct=5"
+        },
+        {
+            "memberName": "Saito Kyoko",
+            "blogUrl": "https://www.hinatazaka46.com/s/official/diary/member/list?ima=0000&ct=6"
+        },
+        {
+            "memberName": "Sasaki Kumi",
+            "blogUrl": "https://www.hinatazaka46.com/s/official/diary/member/list?ima=0000&ct=7"
+        },
+        {
+            "memberName": "Sasaki Mirei",
+            "blogUrl": "https://www.hinatazaka46.com/s/official/diary/member/list?ima=0000&ct=8"
+        },
+        {
+            "memberName": "Takase Mana",
+            "blogUrl": "https://www.hinatazaka46.com/s/official/diary/member/list?ima=0000&ct=9"
+        },
+        {
+            "memberName": "Takamoto Ayaka",
+            "blogUrl": "https://www.hinatazaka46.com/s/official/diary/member/list?ima=0000&ct=10"
+        },
+        {
+            "memberName": "Higashimura Mei",
+            "blogUrl": "https://www.hinatazaka46.com/s/official/diary/member/list?ima=0000&ct=11"
+        },
+        {
+            "memberName": "Kanemura Miku",
+            "blogUrl": "https://www.hinatazaka46.com/s/official/diary/member/list?ima=0000&ct=12"
+        },
+        {
+            "memberName": "Kawata Hina",
+            "blogUrl": "https://www.hinatazaka46.com/s/official/diary/member/list?ima=0000&ct=13"
+        },
+        {
+            "memberName": "Kosaka Nao",
+            "blogUrl": "https://www.hinatazaka46.com/s/official/diary/member/list?ima=0000&ct=14"
+        },
+        {
+            "memberName": "Tomita Suzuka",
+            "blogUrl": "https://www.hinatazaka46.com/s/official/diary/member/list?ima=0000&ct=15"
+        },
+        {
+            "memberName": "Nibu Akari",
+            "blogUrl": "https://www.hinatazaka46.com/s/official/diary/member/list?ima=0000&ct=16"
+        },
+        {
+            "memberName": "Hamaigishi Hiyori",
+            "blogUrl": "https://www.hinatazaka46.com/s/official/diary/member/list?ima=0000&ct=17"
+        },
+        {
+            "memberName": "Matsuda Konoka",
+            "blogUrl": "https://www.hinatazaka46.com/s/official/diary/member/list?ima=0000&ct=18"
+        },
+        {
+            "memberName": "Miyata Manamo",
+            "blogUrl": "https://www.hinatazaka46.com/s/official/diary/member/list?ima=0000&ct=19"
+        },
+        {
+            "memberName": "Watanabe Miho",
+            "blogUrl": "https://www.hinatazaka46.com/s/official/diary/member/list?ima=0000&ct=20"
+        },
+        {
+            "memberName": "Kamimura Hinano",
+            "blogUrl": "https://www.hinatazaka46.com/s/official/diary/member/list?ima=0000&ct=21"
+        },
+        {
+            "memberName": "Takahashi Mikuni",
+            "blogUrl": "https://www.hinatazaka46.com/s/official/diary/member/list?ima=0000&ct=22"
+        },
+        {
+            "memberName": "Morimoto Marii",
+            "blogUrl": "https://www.hinatazaka46.com/s/official/diary/member/list?ima=0000&ct=23"
+        },
+        {
+            "memberName": "Yamaguchi Haruyo",
+            "blogUrl": "https://www.hinatazaka46.com/s/official/diary/member/list?ima=0000&ct=24"
+        },
+        {
+            "memberName": "POKA",
+            "blogUrl": "https://www.hinatazaka46.com/s/official/diary/member/list?ima=0000&ct=000"
+        }
+    ]}
+'''
 
-# parse argument
+#region parse argument
 parser = argparse.ArgumentParser()
 parser.add_argument(
     "-p", "--page", help="Define from which page to download.", type=int, default=1)
 parser.add_argument(
-    "--ignoreDate", help="Ignore latest update date. Use \"True\" when downloading from older page", type=bool, default=False)
+    "-d", "--dir", help="Define where to save the images.", default=str(pathlib.Path(__file__).parent.resolve()))
+parser.add_argument(
+    "-a", "--allPages", help="Save image from all pages of each member's blog.", action='store_true')
 args = parser.parse_args()
+#endregion
 
-# Logic baca file config. Isinya URL blog per member sama tanggal blog terbaru
-configFile = open("config.json", "r", encoding='utf-8')
-config = json.load(configFile)
-BASE_PATH = config["basePath"]
-print("Save Path: {0}".format(BASE_PATH))
-for member in config["members"]:
+def scrap_image(member, base_path, pages):
+    is_success = True
+
     # main image scraper logic
     try:
-        print("Downloading images from {0}'s blog.".format(member["memberName"]))
-        is_success = True
+        print("Downloading images from {0}'s blog.".format(
+            member["memberName"]))        
         count = 0
         URL = member["blogUrl"]
-        page = None
-        if args.page == 1:
-            page = requests.get(URL)
-        else:
+
+        if pages > 1:            
             base_url = URL.split("?")[0]
             params = URL.split("?")[1].split("&")
-            params.insert(1, "page={0}".format(str(args.page)))
+            params.insert(1, "page={0}".format(str(page)))
             params.append("cd=member")
             paramString = "&".join(params)
-            page = requests.get("?".join([base_url, paramString]))
-            print("?".join([base_url, paramString]))
-        soup = BeautifulSoup(page.content, "html.parser")
-        blog_article = soup.find_all("div", class_="p-blog-article")
-        latest_article_date_element = blog_article[0].find(
-            "div", class_="c-blog-article__date").text.strip()
-        latest_update = datetime.datetime.strptime(
-            member["lastUpdate"], '%Y-%m-%d %H:%M:%S') if member["lastUpdate"] != "" else None
-        latest_article_date = datetime.datetime.strptime(
-            latest_article_date_element, '%Y.%m.%d %H:%M') if latest_article_date_element != "" else None
-        name = blog_article[0].find("div", class_="c-blog-article__name")
-        save_path = os.path.join(BASE_PATH, name.text.strip())
-        if not os.path.exists(save_path):
-            os.makedirs(save_path)
-        if(latest_update is None or (latest_update is not None and latest_article_date is not None and latest_article_date > latest_update) or args.ignoreDate):
+            URL = "?".join([base_url, paramString])
+
+        print(URL)
+        webpage = requests.get(URL)
+        soup = BeautifulSoup(webpage.content, "html.parser")
+
+        if soup.find("div", class_="l-contents--blog-list") is None:
+            is_success = False
+
+        if is_success:
+            blog_article = soup.find_all("div", class_="p-blog-article")
+            # latest_article_date_element = blog_article[0].find(
+            #     "div", class_="c-blog-article__date").text.strip()
+            name = blog_article[0].find("div", class_="c-blog-article__name")
+            save_path = os.path.join(base_path, name.text.strip())
+
+            if not os.path.exists(save_path):
+                os.makedirs(save_path)
+
             for article in blog_article:
                 article_info = article.find(
                     "div", class_="p-blog-article__info")
-                # date = article_info.find("div", class_="c-blog-article__date")
+                article_date = article_info.find("div", class_="c-blog-article__date")
+                datetime_string = article_date.text.strip("\n").strip()
                 article_body = article.find(
                     "div", class_="c-blog-article__text")
                 images = article_body.find_all("img")
+
                 for image in images:
                     if image['src'] != "" and "http" in image['src']:
                         basename = os.path.basename(image["src"])
                         full_path = os.path.join(save_path, basename)
+                        
                         if not os.path.exists(full_path):
                             try:
                                 print("Downloading {0}".format(image["src"]))
                                 with open(full_path, "wb") as f:
                                     f.write(requests.get(image['src']).content)
+                                file = filedate.File(full_path)
+                                file.set(
+                                    created = datetime_string+":00",
+                                    modified = datetime_string+":00"
+                                )
                                 count += 1
+                                is_success = True
                             except Exception as e:
                                 is_success = False
                                 print("Problem downloading {0}".format(
                                     image["src"]))
                                 print(str(e))
-        if is_success and count > 0:
-            print("Downloaded {0} images from {1}'s Blog.\n".format(
-                str(count), member["memberName"]))
-        elif is_success and count == 0:
-            print("All images from {0}'s blog have been downloaded.\n".format(
-                member["memberName"]))
-        if is_success and args.ignoreDate == False:
-            member["lastUpdate"] = str(latest_article_date)
-    except:
-        print("Problem getting data of {0} \n".format(member["memberName"]))
-configFile.close()
 
-# write back config to file
-json_object = json.dumps(config)
-with open("config.json", "w", encoding='utf-8') as out:
-    out.write(json_object)
+            if is_success and count > 0:
+                print("Downloaded {0} images from {1}'s Blog.\n".format(
+                    str(count), member["memberName"]))
+            # elif is_success and count == 0:
+            #     print("All images from {0}'s blog have been downloaded.\n".format(
+            #         member["memberName"]))
+            
+            if count > 0:
+                is_success = True
+    except:
+        is_success = False
+        print("Problem getting data of {0} \n".format(member["memberName"]))
+
+    return is_success
+
+config = json.loads(confstring)
+BASE_PATH = args.dir
+
+print("Save Path: {0}".format(BASE_PATH))
+for member in config["members"]:
+    page = args.page
+    if args.allPages:
+        while(scrap_image(member, BASE_PATH, page)):
+            page += 1
+    else:
+        scrap_image(member, BASE_PATH, page)
+
+    print("All images from {0}'s blog have been downloaded.\n".format(member["memberName"]))
