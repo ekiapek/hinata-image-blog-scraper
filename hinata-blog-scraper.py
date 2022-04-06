@@ -161,7 +161,8 @@ def scrap_image(member, base_path, pages):
                 images = article_body.find_all("img")
                 count_image = 0
                 for image in images:
-                    if image['src'] != "" and "http" in image['src']:
+                    src = image.get('src')
+                    if src is not None and src != "" and "http" in src:
                         basename = os.path.basename(image["src"])
 
                         try:
@@ -203,7 +204,7 @@ def scrap_image(member, base_path, pages):
     except Exception as e:
         is_success = False
         print("Problem getting data of {0} \n".format(member["memberName"]))
-
+        print(e)
     return is_success
 
 config = json.loads(confstring)
