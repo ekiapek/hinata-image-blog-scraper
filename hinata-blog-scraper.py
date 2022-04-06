@@ -6,6 +6,7 @@ import os
 import argparse
 import pathlib
 import filedate
+from pathvalidate import validate_filename, ValidationError
 
 confstring = '''
  {"members": [
@@ -128,7 +129,7 @@ def scrap_image(member, base_path, pages):
         if pages > 1:            
             base_url = URL.split("?")[0]
             params = URL.split("?")[1].split("&")
-            params.insert(1, "page={0}".format(str(page)))
+            params.insert(1, "page={0}".format(str(pages)))
             params.append("cd=member")
             paramString = "&".join(params)
             URL = "?".join([base_url, paramString])
@@ -158,10 +159,18 @@ def scrap_image(member, base_path, pages):
                 article_body = article.find(
                     "div", class_="c-blog-article__text")
                 images = article_body.find_all("img")
-
+                count_image = 0
                 for image in images:
                     if image['src'] != "" and "http" in image['src']:
                         basename = os.path.basename(image["src"])
+
+                        try:
+                            validate_filename(basename)
+                        except ValidationError as e:
+                            file_ext = os.path.splitext(image['src'])[1]
+                            basename = member["memberName"] + datetime_string.replace(" ","-").replace(":","-") + "_" + str(count_image) + file_ext
+                            count_image += 1
+
                         full_path = os.path.join(save_path, basename)
                         
                         if not os.path.exists(full_path):
@@ -177,12 +186,12 @@ def scrap_image(member, base_path, pages):
                                 count += 1
                                 is_success = True
                             except Exception as e:
-                                is_success = False
+                                # is_success = False
                                 print("Problem downloading {0}".format(
                                     image["src"]))
                                 print(str(e))
 
-            if is_success and count > 0:
+            if count > 0:
                 print("Downloaded {0} images from {1}'s Blog.\n".format(
                     str(count), member["memberName"]))
             # elif is_success and count == 0:
@@ -191,7 +200,7 @@ def scrap_image(member, base_path, pages):
             
             if count > 0:
                 is_success = True
-    except:
+    except Exception as e:
         is_success = False
         print("Problem getting data of {0} \n".format(member["memberName"]))
 
